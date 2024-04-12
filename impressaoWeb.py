@@ -21,14 +21,14 @@ def obter_conteudo_html_from_db(usuario, senha, host, porta, sid, query, output_
 
             # Iterar pelos resultados
             for resultado in cursor:
-                # Obter o conteúdo HTML da linha atual
-                html_content = resultado[0].read()
+                # Obter o conteúdo HTML da linha atual e converter para string
+                html_content = str(resultado[0])
 
                 # Converter o conteúdo HTML para PDF e contar o número de páginas
-                num_pages = converter_html_para_pdf(html_content, output_dir)
+                pdf_file, num_pages = converter_html_para_pdf(html_content, output_dir)
 
                 # Salvar os resultados em log
-                data_documento = resultado[2]
+                data_documento = resultado[1]  # Corrigido o índice para data_documento
                 salvar_resultados_em_log(resultado[1], num_pages, data_documento, output_dir)
 
             # Fechar o cursor
@@ -36,7 +36,7 @@ def obter_conteudo_html_from_db(usuario, senha, host, porta, sid, query, output_
 
     except cx_Oracle.DatabaseError as e:
         # Salvar mensagem de erro no arquivo de log
-        salvar_mensagem_de_erro(f"Erro ao conectar ao banco de dados Oracle: {e}", output_dir, diretorio_saida_log)
+        salvar_mensagem_de_erro(f"Erro ao conectar ao banco de dados Oracle: {e}", output_dir)
 
 def converter_html_para_pdf(html_content, output_dir, margin_top=44, font_size=12, margin_bottom=55, margin_left=16, margin_right=16):
     # Parsear o conteúdo HTML usando BeautifulSoup
@@ -78,11 +78,11 @@ def converter_html_para_pdf(html_content, output_dir, margin_top=44, font_size=1
         with open(pdf_file, 'rb') as f:
             reader = PdfReader(f)
             num_pages = len(reader.pages)
-            return num_pages
+            return pdf_file, num_pages  # Retornar o caminho do arquivo PDF e o número de páginas
     else:
         # Salvar mensagem de erro no arquivo de log
         salvar_mensagem_de_erro("Erro ao gerar o arquivo PDF.", output_dir)
-        return 0
+        return None, 0  # Retornar None se o PDF não for gerado com sucesso
 
 def salvar_resultados_em_log(id_documento, num_pages, data_documento, output_dir):
     data_documento_str = data_documento.strftime("%Y%m%d")
@@ -95,16 +95,9 @@ def salvar_resultados_em_log(id_documento, num_pages, data_documento, output_dir
     with open(log_file_path, "a") as log_file:
         if os.path.getsize(log_file_path) == 0:  # Verificar se o arquivo está vazio para adicionar os cabeçalhos
             log_file.write("ID; num_pag \n")
-            
-        
+
         # Escrever cada valor em colunas separadas com uma vírgula
         log_file.write(f'{id_documento}; {num_pages}\n')
-
-        
-
-
-
-
 
 def salvar_mensagem_de_erro(mensagem, output_dir):
     data_hora_atual = datetime.datetime.now().strftime("%H-%M-%S_%d-%m-%Y")
@@ -151,8 +144,8 @@ def executar_script():
             sid = 'SEIH'
 
             # Diretório de saída para os arquivos de log
-            output_dir = r''
-            diretorio_saida_log = r''
+            output_dir = r'C:\Banco-de-dados\saidaHtml'
+            diretorio_saida_log = r'C:\Banco-de-dados\saidaHtml\log'
 
             # Verificar se o diretório de saída existe, se não, criar
             if not os.path.exists(diretorio_saida_log):
@@ -160,10 +153,10 @@ def executar_script():
 
             # Definir o período para análise
             data_inicio = '20240101'
-            data_fim = '20240120'
+            data_fim = '20240220'
 
             # Sua query para obter conteúdo HTML do banco de dados com base no período
-            query = "BANCO DE DADOS ORACLE"
+            query = f"SELECT doc.conteudo AS pagina, pro.dta_geracao AS DATA FROM sei.documento_conteudo doc JOIN sei.documento do ON doc.id_documento = do.id_documento JOIN sei.protocolo pro ON pro.id_protocolo = do.id_documento WHERE doc.conteudo IS NOT NULL AND pro.dta_geracao BETWEEN TO_DATE('{data_inicio}', 'YYYYMMDD') AND TO_DATE('{data_fim}', 'YYYYMMDD')"
 
             # Obtém o conteúdo HTML do banco de dados e exibe cada linha analisada
             obter_conteudo_html_from_db(usuario, senha, host, porta, sid, query, output_dir, diretorio_saida_log)
@@ -177,7 +170,7 @@ def executar_script():
             # Aguardar um intervalo antes de verificar novamente
             time.sleep(10)  # Aguarda 1 minuto antes de verificar novamente
 
-def salvar_inicio_e_fim_do_processamento(data_inicio, diretorio_saida_log ):
+def salvar_inicio_e_fim_do_processamento(data_inicio, diretorio_saida_log):
     data_hora_atual = datetime.datetime.now().strftime("%H:%M:%S %Y%m%d")
 
     # Nomear o arquivo de log com a data atual
