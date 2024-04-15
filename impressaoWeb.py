@@ -1,4 +1,3 @@
-import time
 import cx_Oracle
 import subprocess
 import os
@@ -7,7 +6,14 @@ from bs4 import BeautifulSoup
 import datetime
 import yaml
 
-def obter_conteudo_html_from_db(usuario, senha, host, porta, sid, query, output_dir, diretorio_saida_log):
+def obter_conteudo_html_from_db(output_dir, query, diretorio_saida_log):
+    # Sua configuração de conexão Oracle
+    usuario = 'anderson'
+    senha = 'anderson#2023'
+    host = '10.0.56.5'
+    porta = '1521'
+    sid = 'SEIH'
+
     # Construir a string de conexão Oracle
     conexao_str = f"{usuario}/{senha}@{host}:{porta}/{sid}"
 
@@ -37,7 +43,7 @@ def obter_conteudo_html_from_db(usuario, senha, host, porta, sid, query, output_
 
     except cx_Oracle.DatabaseError as e:
         # Salvar mensagem de erro no arquivo de log
-        salvar_mensagem_de_erro(f"Erro ao conectar ao banco de dados Oracle: {e}", output_dir)
+        salvar_mensagem_de_erro(f"Erro ao conectar ao banco de dados Oracle: {e}", diretorio_saida_log)
 
 def salvar_resultados_em_log(id_documento, num_pages, data_documento, output_dir):
     data_documento_str = data_documento.strftime("%Y%m%d")
@@ -121,55 +127,31 @@ def executar_script():
     paramfile = 'paramfile.yaml'
     parametros = ler_parametros(paramfile)
 
+    # Diretório de saída para os arquivos de log
+    diretorio_saida_log = parametros['diretorio_saida_log']
+
     # Imprimir os parâmetros lidos do arquivo YAML
-    print("Horario de Inicio:", parametros['horario_inicio'])
-    print("Horario de Fim:", parametros['horario_fim'])
+    print("Diretorio de Saida do Log:", diretorio_saida_log)
 
-    # Obter o horário de início e de fim
-    horario_inicio = parametros['horario_inicio']
-    horario_fim = parametros['horario_fim']
+    # Definir o período para análise
+    data_inicio = '20240101'
+    data_fim = '20240120'
 
-    while True:
-        # Obter o horário atual
-        agora = datetime.datetime.now().time()
+    # Sua query para obter conteúdo HTML do banco de dados com base no período
+    query = f"SELECT doc.id_documento AS ID, doc.conteudo AS pagina, pro.dta_geracao AS DATA FROM sei.documento_conteudo doc JOIN sei.documento do ON doc.id_documento = do.id_documento JOIN sei.protocolo pro ON pro.id_protocolo = do.id_documento WHERE doc.conteudo IS NOT NULL AND pro.dta_geracao BETWEEN TO_DATE('{data_inicio}', 'YYYYMMDD') AND TO_DATE('{data_fim}', 'YYYYMMDD')"
 
-        # Verificar se está dentro do horário de execução
-        if agora >= datetime.datetime.strptime(horario_inicio, '%H:%M').time() and agora <= datetime.datetime.strptime(horario_fim, '%H:%M').time():
-            print("Dentro do horario de execucao. Iniciando processamento...")
+    # Diretório de saída para os arquivos convertidos
+    output_dir = 'C:\\Banco-de-dados\\saidaHtml'
 
-            # Sua configuração de conexão Oracle
-            usuario = 'anderson'
-            senha = 'anderson#2023'
-            host = '10.0.56.5'
-            porta = '1521'
-            sid = 'SEIH'
+    # Verificar se o diretório de saída existe, se não, criar
+    if not os.path.exists(diretorio_saida_log):
+        os.makedirs(diretorio_saida_log)
 
-            # Diretório de saída para os arquivos de log
-            output_dir = 'C:\\Banco-de-dados\\saidaHtml'
-            diretorio_saida_log = 'C:\\Banco-de-dados\\saidaHtml\\log'
+    # Obtém o conteúdo HTML do banco de dados e exibe cada linha analisada
+    obter_conteudo_html_from_db(output_dir, query, diretorio_saida_log)
 
-            # Verificar se o diretório de saída existe, se não, criar
-            if not os.path.exists(diretorio_saida_log):
-                os.makedirs(diretorio_saida_log)
-
-            # Definir o período para análise
-            data_inicio = '20240101'
-            data_fim = '20240120'
-
-            # Sua query para obter conteúdo HTML do banco de dados com base no período
-            query = f"SELECT doc.id_documento AS ID, doc.conteudo AS pagina, pro.dta_geracao AS DATA FROM sei.documento_conteudo doc JOIN sei.documento do ON doc.id_documento = do.id_documento JOIN sei.protocolo pro ON pro.id_protocolo = do.id_documento WHERE doc.conteudo IS NOT NULL AND pro.dta_geracao BETWEEN TO_DATE('{data_inicio}', 'YYYYMMDD') AND TO_DATE('{data_fim}', 'YYYYMMDD')"
-
-            # Obtém o conteúdo HTML do banco de dados e exibe cada linha analisada
-            obter_conteudo_html_from_db(usuario, senha, host, porta, sid, query, output_dir, diretorio_saida_log)
-
-            # Salvar o início e o fim do processamento no log
-            salvar_inicio_e_fim_do_processamento(data_inicio, diretorio_saida_log)
-            break  # Saia do loop após a execução
-
-        else:
-            print("Fora do horario de execucao. Aguardando...")
-            # Aguardar um intervalo antes de verificar novamente
-            time.sleep(10)  # Aguarda 1 minuto antes de verificar novamente
+    # Salvar o início e o fim do processamento no log
+    salvar_inicio_e_fim_do_processamento(data_inicio, diretorio_saida_log)
 
 def salvar_inicio_e_fim_do_processamento(data_inicio, diretorio_saida_log):
     data_hora_atual = datetime.datetime.now().strftime("%H:%M:%S %Y%m%d")

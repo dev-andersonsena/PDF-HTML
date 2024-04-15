@@ -1,4 +1,4 @@
-# paramfile.yaml
 
-horario_inicio: '11:11'
-horario_fim: '11:12'
+# REGISTRO DO HORARIO DE INICIO E FIM DA EXECUÇÃO
+
+diretorio_saida_log: 'C:\\Banco-de-dados\\saidaHtml\\log'
